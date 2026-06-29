@@ -24,6 +24,7 @@
 "host_device\stm32f1xx_hal_tim_ex.o"
 "host_device\stm32f1xx_hal_uart.o"
 "host_device\system_stm32f1xx.o"
+"host_device\appupdate.o"
 --library_type=microlib --strict --scatter "Host_Device\Host_Device.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
