@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,6 +94,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  CAN_FilterConfig();
+  HAL_CAN_Start(&hcan);
 
   /* USER CODE END 2 */
 
@@ -101,8 +103,20 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    RxMsg msg[8]={0};
+    uint16_t len=0;
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
-
+    CAN_ReceiveMsg(msg,&len);
+    for(int i=0;i<len;i++)
+    {
+	  printf("slave r:%s-->%d\r\n",msg[i].data,msg[i].len);
+      if(strcmp((const char*)msg[i].data,"version")==0)
+      {
+        uint8_t *data="v1.0";
+        CAN_SendMsg(0x123,data,strlen((const char*)data));
+      }
+    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

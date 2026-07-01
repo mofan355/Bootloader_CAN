@@ -116,5 +116,55 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
 }
 
 /* USER CODE BEGIN 1 */
+void CAN_FilterConfig(void)
+{
+  CAN_FilterTypeDef filterConfig;
+  filterConfig.FilterFIFOAssignment=CAN_FILTER_FIFO0;
+  filterConfig.FilterBank=0;
+  filterConfig.FilterMode=CAN_FILTERMODE_IDMASK;
+  filterConfig.FilterScale=CAN_FILTERMODE_IDMASK;
+  filterConfig.FilterIdHigh=0x00;
+  filterConfig.FilterIdLow=0x00;
+  filterConfig.FilterMaskIdHigh=0x00;
+  filterConfig.FilterMaskIdLow=0x00;
+  filterConfig.FilterActivation=CAN_FILTER_ENABLE;
+  HAL_CAN_ConfigFilter(&hcan,&filterConfig);
+}
 
+void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
+{
+  while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan)==0);
+  CAN_TxHeaderTypeDef txHeader;
+  txHeader.StdId=stdId;
+  txHeader.DLC=len;
+  txHeader.IDE=CAN_ID_STD;
+  txHeader.RTR=CAN_RTR_DATA;
+  uint32_t txMailtBox;
+  HAL_CAN_AddTxMessage(&hcan,&txHeader,data,&txMailtBox);
+  
+  if(txMailtBox==CAN_TX_MAILBOX0)
+  {
+    while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK0)==0);
+  }
+  else if(txMailtBox==CAN_TX_MAILBOX1)
+  {
+    while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK1)==0);
+  }
+  else if(txMailtBox==CAN_TX_MAILBOX0)
+  {
+    while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK2)==0);
+  }
+}
+
+void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgLength)
+{
+  *MsgLength=HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0);
+  CAN_RxHeaderTypeDef rxHeader;
+  for(int i=0;i<*MsgLength;i++)
+  {
+    HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,rxMsg[i].data);
+    rxMsg[i].stdId=rxHeader.StdId;
+    rxMsg[i].len=rxHeader.DLC;
+  }
+}
 /* USER CODE END 1 */

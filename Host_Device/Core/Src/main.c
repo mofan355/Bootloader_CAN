@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,15 +92,25 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  CAN_FilterConfig();
+  HAL_CAN_Start(&hcan);
+  uint8_t *data="version";
+  uint32_t stdId=0x123;
+  CAN_SendMsg(stdId,data,strlen((const char*)data));
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    printf("uart transmit success!!!\r\n");
-    HAL_Delay(1000);
+    RxMsg msg[8]={0};
+    uint16_t len=0;
+    CAN_ReceiveMsg(msg,&len);
+    for(int i=0;i<len;i++)
+    {
+      printf("current version: %s\r\n",msg[i].data);
+    }
+    printf("compare version");
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }
