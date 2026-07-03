@@ -21,7 +21,7 @@
 #include "can.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "stdio.h"
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -156,12 +156,21 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
   }
 }
 
-void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgLength)
+void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
 {
-  *MsgLength=HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0);
+  //等待接收缓冲区有数据
+  while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
+	printf("start receive\r\n");
   CAN_RxHeaderTypeDef rxHeader;
-  for(int i=0;i<*MsgLength;i++)
+  uint8_t temp[8]={0};
+  //得到报文数量
+  HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,temp);
+  *MsgCount=temp[0]|(temp[1]<<8);
+  //接收报文内容
+  for(int i=0;i<*MsgCount;i++)
   {
+    //等待接收缓冲区有数据
+    while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
     HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,rxMsg[i].data);
     rxMsg[i].stdId=rxHeader.StdId;
     rxMsg[i].len=rxHeader.DLC;

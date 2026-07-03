@@ -94,23 +94,52 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
+  printf("host start...\r\n");
+  
+	//向从机获取当前版本信息
   uint8_t *data="version";
   uint32_t stdId=0x123;
-  CAN_SendMsg(stdId,data,strlen((const char*)data));
+  CAN_SendMsg_long(stdId,data,strlen((const char*)data));
+  printf("send 'version' successfully\r\n");
+	
+	data="abcdefghijklmnopqrstuvwxyz";
+  CAN_SendMsg_long(stdId,data,strlen((const char*)data));
+	printf("send successfully!\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    RxMsg msg[8]={0};
-    uint16_t len=0;
-    CAN_ReceiveMsg(msg,&len);
-    for(int i=0;i<len;i++)
-    {
-      printf("current version: %s\r\n",msg[i].data);
-    }
-    printf("compare version");
+	  HAL_Delay(2000);
+//    RxMsg msg[8]={0};
+//    uint16_t len=0;
+//    CAN_ReceiveMsg(msg,&len);
+//    for(int i=0;i<len;i++)
+//    {
+//      printf("current version: %s\r\n",msg[i].data);
+//    }
+//	printf("%d\r\n",len);
+//    //请求比较版本
+//    printf("compare version\r\n");
+
+//    uint8_t uart_r_data[16]={0};
+//    uint16_t rxLen=0;
+//    while(rxLen==0)
+//    {
+//      HAL_UARTEx_ReceiveToIdle(&huart1,uart_r_data,16,&rxLen,HAL_MAX_DELAY);
+//    }
+//    printf("uart receive data: %s\r\n",uart_r_data);
+//    data=uart_r_data;
+//    CAN_SendMsg(stdId,data,strlen((const char*)data));
+
+//	rxLen=0;
+//    while(rxLen==0)
+//    {
+//      HAL_UARTEx_ReceiveToIdle(&huart1,uart_r_data,16,&rxLen,HAL_MAX_DELAY);
+//    }
+//    data=uart_r_data;
+	
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }

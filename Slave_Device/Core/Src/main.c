@@ -97,26 +97,35 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
 
+printf("slave start...\r\n");
+    //存储报文信息
+    RxMsg msg[8]={0};
+    //报文数量
+    uint16_t len=0;
+    /* USER CODE END WHILE */
+    CAN_ReceiveMsg(msg,&len);
+    for(int i=0;i<len;i++)
+    {
+      if(i==0) printf("slave r:");
+      for(int j=0;j<msg[i].len;j++)
+      {
+        printf("%c",msg[i].data[j]);
+      }
+      if(i+1==len) printf("\r\n");
+      if(len==1&&strcmp((const char*)msg[i].data,"version")==0)
+      {
+        uint8_t *data="v1.0";
+        CAN_SendMsg(0x123,data,strlen((const char*)data));
+		  printf("send 'v1.0' successfully\r\n");
+      }
+    }
+	if(len>0) printf("len-->%d\r\n",len);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    RxMsg msg[8]={0};
-    uint16_t len=0;
-    HAL_Delay(1000);
-    /* USER CODE END WHILE */
-    CAN_ReceiveMsg(msg,&len);
-    for(int i=0;i<len;i++)
-    {
-	  printf("slave r:%s-->%d\r\n",msg[i].data,msg[i].len);
-      if(strcmp((const char*)msg[i].data,"version")==0)
-      {
-        uint8_t *data="v1.0";
-        CAN_SendMsg(0x123,data,strlen((const char*)data));
-      }
-    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

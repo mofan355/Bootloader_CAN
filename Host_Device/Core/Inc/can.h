@@ -48,6 +48,7 @@ void MX_CAN_Init(void);
 /* USER CODE BEGIN Prototypes */
 void CAN_FilterConfig(void);
 void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len);
+void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len);
 void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgLength);
 /* USER CODE END Prototypes */
 

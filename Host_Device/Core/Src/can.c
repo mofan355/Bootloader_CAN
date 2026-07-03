@@ -21,7 +21,8 @@
 #include "can.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "string.h"
+#include "stdio.h"
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -134,25 +135,49 @@ void CAN_FilterConfig(void)
 void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
 {
   while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan)==0);
+	printf("start transmit\r\n");
   CAN_TxHeaderTypeDef txHeader;
   txHeader.StdId=stdId;
   txHeader.DLC=len;
   txHeader.IDE=CAN_ID_STD;
   txHeader.RTR=CAN_RTR_DATA;
   uint32_t txMailtBox;
-  HAL_CAN_AddTxMessage(&hcan,&txHeader,data,&txMailtBox);
+  uint8_t state=HAL_CAN_AddTxMessage(&hcan,&txHeader,data,&txMailtBox);
+	printf("state--->%d\r\n",state);
+	printf("txMailBox-->%d\r\n",txMailtBox);
   
   if(txMailtBox==CAN_TX_MAILBOX0)
   {
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK0)==0);
+		__HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK0);
   }
   else if(txMailtBox==CAN_TX_MAILBOX1)
   {
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK1)==0);
+    __HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK1);
   }
-  else if(txMailtBox==CAN_TX_MAILBOX0)
+  else if(txMailtBox==CAN_TX_MAILBOX2)
   {
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK2)==0);
+    __HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK2);
+  }
+}
+
+void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
+{
+  uint8_t send_count=(uint8_t)(len/8);
+  if(len%8!=0) send_count++;
+	printf("send_count:%d\r\n",send_count);
+  CAN_SendMsg(stdId,&send_count,1);
+
+  for(uint16_t j=0;j<len;j+=8)
+  {
+    uint8_t temp[8]={0};
+    uint32_t send_len=0;
+    if(len-j>=8) send_len=8;
+    else send_len=len-j;
+    memcpy(temp,data+j,send_len);
+    CAN_SendMsg(stdId,temp,send_len);
   }
 }
 
