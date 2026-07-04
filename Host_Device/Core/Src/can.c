@@ -135,7 +135,6 @@ void CAN_FilterConfig(void)
 void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
 {
   while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan)==0);
-	printf("start transmit\r\n");
   CAN_TxHeaderTypeDef txHeader;
   txHeader.StdId=stdId;
   txHeader.DLC=len;
@@ -143,8 +142,6 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
   txHeader.RTR=CAN_RTR_DATA;
   uint32_t txMailtBox;
   uint8_t state=HAL_CAN_AddTxMessage(&hcan,&txHeader,data,&txMailtBox);
-	printf("state--->%d\r\n",state);
-	printf("txMailBox-->%d\r\n",txMailtBox);
   
   if(txMailtBox==CAN_TX_MAILBOX0)
   {
@@ -167,7 +164,6 @@ void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
 {
   uint8_t send_count=(uint8_t)(len/8);
   if(len%8!=0) send_count++;
-	printf("send_count:%d\r\n",send_count);
   CAN_SendMsg(stdId,&send_count,1);
 
   for(uint16_t j=0;j<len;j+=8)
@@ -181,15 +177,36 @@ void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
   }
 }
 
-void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgLength)
+void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
 {
-  *MsgLength=HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0);
+  //等待接收缓冲区有数据
+  while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
   CAN_RxHeaderTypeDef rxHeader;
-  for(int i=0;i<*MsgLength;i++)
+  uint8_t temp[8]={0};
+  //得到报文数量
+  HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,temp);
+  *MsgCount=temp[0]|(temp[1]<<8);
+  //接收报文内容
+  for(int i=0;i<*MsgCount;i++)
   {
+    //等待接收缓冲区有数据
+    while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
     HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,rxMsg[i].data);
     rxMsg[i].stdId=rxHeader.StdId;
     rxMsg[i].len=rxHeader.DLC;
   }
+}
+
+void printf_Infor_from_CAN(RxMsg rxMsg[],uint16_t MsgCount)
+{
+  for(int i=0;i<MsgCount;i++)
+    {
+      if(i==0) printf("host r:");
+      for(int j=0;j<rxMsg[i].len;j++)
+      {
+        printf("%c",rxMsg[i].data[j]);
+      }
+      if(i+1==MsgCount) printf("\r\n");
+    }
 }
 /* USER CODE END 1 */

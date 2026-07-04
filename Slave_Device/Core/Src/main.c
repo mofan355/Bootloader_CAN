@@ -97,29 +97,39 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
 
-printf("slave start...\r\n");
-    //存储报文信息
-    RxMsg msg[8]={0};
-    //报文数量
-    uint16_t len=0;
-    /* USER CODE END WHILE */
-    CAN_ReceiveMsg(msg,&len);
-    for(int i=0;i<len;i++)
+  printf("slave start...\r\n");
+  //存储报文信息
+  RxMsg msg[8]={0};
+  //报文数量
+  uint16_t MsgCount=0;
+  /* USER CODE END WHILE */
+  CAN_ReceiveMsg(msg,&MsgCount);
+  printf_Infor_from_CAN(msg,MsgCount);
+  if(MsgCount==1&&strcmp((const char*)msg[0].data,"version")==0)
     {
-      if(i==0) printf("slave r:");
-      for(int j=0;j<msg[i].len;j++)
-      {
-        printf("%c",msg[i].data[j]);
-      }
-      if(i+1==len) printf("\r\n");
-      if(len==1&&strcmp((const char*)msg[i].data,"version")==0)
-      {
-        uint8_t *data="v1.0";
-        CAN_SendMsg(0x123,data,strlen((const char*)data));
+      uint8_t *data="v1.0";
+      CAN_SendMsg_long(0x123,data,strlen((const char*)data));
 		  printf("send 'v1.0' successfully\r\n");
-      }
     }
-	if(len>0) printf("len-->%d\r\n",len);
+
+  //接收版本比较结果
+  memset(msg,0,sizeof(msg));
+  CAN_ReceiveMsg(msg,&MsgCount);
+  printf_Infor_from_CAN(msg,MsgCount);
+  
+  if(MsgCount==1&&strcmp((const char*)msg[0].data,"YES")==0)
+  {
+    //更新操作
+    printf("Updating...\r\n");
+  }
+  else if(MsgCount==1&&strcmp((const char*)msg[0].data,"NO")==0)
+  {
+    //不更新
+    printf("No update needed.\r\n");
+  }
+
+  //跳转到应用程序
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */

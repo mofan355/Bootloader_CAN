@@ -156,6 +156,24 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
   }
 }
 
+void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
+{
+  uint8_t send_count=(uint8_t)(len/8);
+  if(len%8!=0) send_count++;
+	printf("send_count:%d\r\n",send_count);
+  CAN_SendMsg(stdId,&send_count,1);
+
+  for(uint16_t j=0;j<len;j+=8)
+  {
+    uint8_t temp[8]={0};
+    uint32_t send_len=0;
+    if(len-j>=8) send_len=8;
+    else send_len=len-j;
+    memcpy(temp,data+j,send_len);
+    CAN_SendMsg(stdId,temp,send_len);
+  }
+}
+
 void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
 {
   //等待接收缓冲区有数据
@@ -175,5 +193,18 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
     rxMsg[i].stdId=rxHeader.StdId;
     rxMsg[i].len=rxHeader.DLC;
   }
+}
+
+void printf_Infor_from_CAN(RxMsg rxMsg[],uint16_t MsgCount)
+{
+  for(int i=0;i<MsgCount;i++)
+    {
+      if(i==0) printf("slave r:");
+      for(int j=0;j<rxMsg[i].len;j++)
+      {
+        printf("%c",rxMsg[i].data[j]);
+      }
+      if(i+1==MsgCount) printf("\r\n");
+    }
 }
 /* USER CODE END 1 */

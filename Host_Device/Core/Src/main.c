@@ -26,6 +26,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
+#include "stdlib.h"
+#include "AppUpdate.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define stdId 0x123
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,50 +97,77 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
   printf("host start...\r\n");
-  
+  uint8_t *host_version="v1.0";
+  uint8_t *slave_version=NULL;
 	//向从机获取当前版本信息
   uint8_t *data="version";
-  uint32_t stdId=0x123;
   CAN_SendMsg_long(stdId,data,strlen((const char*)data));
-  printf("send 'version' successfully\r\n");
+  printf("access information of current version of slave.\r\n");
+
+  RxMsg msg[8]={0};
+  uint16_t MsgCount=0;
+  CAN_ReceiveMsg(msg,&MsgCount);
+  slave_version=msg[0].data;
+  printf_Infor_from_CAN(msg,MsgCount);
 	
-	data="abcdefghijklmnopqrstuvwxyz";
-  CAN_SendMsg_long(stdId,data,strlen((const char*)data));
-	printf("send successfully!\r\n");
+  //向电脑端获取最新版本信息
+  printf("latest version\r\n");
+  uint8_t rxMsg[512]={0};
+  uint16_t rxLen=0;
+  rxLen=Receive_Info_from_UART(rxMsg,4);
+  printf("uart receive data: %s-->%d\r\n",rxMsg,rxLen);
+
+  //开始比较版本
+  uint8_t *compare_result="NO";
+  //比较slave版本和最新版本是否一致
+	printf("start compare version between slave and latest:Need update(YES)/No need(NO)\r\n");
+  if(strncmp((const char*)slave_version,(const char*)rxMsg,4)==0)
+  {
+    //一致，不需要更新
+    printf("NO\r\n");
+  }
+  else
+  {
+    //不一致，需要更新
+    compare_result="YES";
+    printf("YES\r\n");
+    printf("start compare version between host and latest.\r\n");
+    if(strncmp((const char*)host_version,(const char*)rxMsg,4)==0)
+    {
+      //一致，不需要更新host现存版本
+      printf("No need to update host\r\n");
+    }
+    else
+    {
+      //不一致，需要更新host现存版本
+      printf("Start to update host\r\n");
+      //得到新程序大小Byte
+      Receive_Info_from_UART(rxMsg,16);
+      rxLen=atoi((const char*)rxMsg);
+      printf("file size:%d Byte\r\n",rxLen);
+      //擦除flash
+      Flash_Erase(APP_START_ADDR,rxLen);
+      printf("flash erase successfully.\r\n");
+
+      //通过uart从电脑接收新版本程序并写入到flash
+			printf("start receive app\r\n");
+      rxLen=Receive_app_from_UART(rxMsg,rxLen);
+      printf("received app:%d Byte.\r\n",rxLen);
+    }
+  }
+  
+  //发送所得结果给从机
+  CAN_SendMsg_long(stdId,compare_result,strlen((const char*)compare_result));
+  printf("send '%s' successfully.\r\n",compare_result);
+
+  //发送新版本程序给slave
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(2000);
-//    RxMsg msg[8]={0};
-//    uint16_t len=0;
-//    CAN_ReceiveMsg(msg,&len);
-//    for(int i=0;i<len;i++)
-//    {
-//      printf("current version: %s\r\n",msg[i].data);
-//    }
-//	printf("%d\r\n",len);
-//    //请求比较版本
-//    printf("compare version\r\n");
-
-//    uint8_t uart_r_data[16]={0};
-//    uint16_t rxLen=0;
-//    while(rxLen==0)
-//    {
-//      HAL_UARTEx_ReceiveToIdle(&huart1,uart_r_data,16,&rxLen,HAL_MAX_DELAY);
-//    }
-//    printf("uart receive data: %s\r\n",uart_r_data);
-//    data=uart_r_data;
-//    CAN_SendMsg(stdId,data,strlen((const char*)data));
-
-//	rxLen=0;
-//    while(rxLen==0)
-//    {
-//      HAL_UARTEx_ReceiveToIdle(&huart1,uart_r_data,16,&rxLen,HAL_MAX_DELAY);
-//    }
-//    data=uart_r_data;
 	
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */

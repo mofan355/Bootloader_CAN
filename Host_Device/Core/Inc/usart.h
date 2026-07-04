@@ -42,6 +42,7 @@ void MX_USART1_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 int fputc(int ch,FILE* file);
+uint16_t Receive_Info_from_UART(uint8_t *data,uint16_t MaxLen);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

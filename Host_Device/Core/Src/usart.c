@@ -118,4 +118,12 @@ int fputc(int ch,FILE* file)
   HAL_UART_Transmit(&huart1,(uint8_t *)&ch,1,1000);
   return ch;
 }
+
+//阻塞式接收来自串口的数据，直到接收到数据为止，返回接收到的数据长度
+uint16_t Receive_Info_from_UART(uint8_t *data,uint16_t MaxLen)
+{
+  uint16_t rxLen=0;
+  HAL_UARTEx_ReceiveToIdle(&huart1,data,MaxLen,&rxLen,60000);
+  return rxLen;
+}
 /* USER CODE END 1 */
