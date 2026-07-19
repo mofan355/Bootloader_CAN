@@ -135,32 +135,52 @@ int main(void)
     if(strncmp((const char*)host_version,(const char*)rxMsg,4)==0)
     {
       //一致，不需要更新host现存版本
-      printf("No need to update host\r\n");
+      printf("No need to update app of host\r\n");
     }
     else
     {
       //不一致，需要更新host现存版本
-      printf("Start to update host\r\n");
+      printf("Start to update app of host\r\n");
       //得到新程序大小Byte
+      printf("input file size(Byte):\r\n");
       Receive_Info_from_UART(rxMsg,16);
       rxLen=atoi((const char*)rxMsg);
       printf("file size:%d Byte\r\n",rxLen);
       //擦除flash
+      printf("start erase special flash\r\n");
       Flash_Erase(APP_START_ADDR,rxLen);
       printf("flash erase successfully.\r\n");
 
       //通过uart从电脑接收新版本程序并写入到flash
-			printf("start receive app\r\n");
+			printf("start receive app from UART to host flash\r\n");
       rxLen=Receive_app_from_UART(rxMsg,rxLen);
       printf("received app:%d Byte.\r\n",rxLen);
     }
   }
   
-  //发送所得结果给从机
+  //发送版本比较结果给从机，YES表示需要更新，NO表示不需要更新
   CAN_SendMsg_long(stdId,compare_result,strlen((const char*)compare_result));
   printf("send '%s' successfully.\r\n",compare_result);
 
-  //发送新版本程序给slave
+  //读取host的flash中的最新版本程序并发送给slave
+  //等待从机备份好，发来start再开始发送
+  printf("waitting 'start' of slave.\r\n");
+  while(1)
+  {
+    CAN_ReceiveMsg(msg,&rxLen);
+    printf_Infor_from_CAN(msg,rxLen);
+    if(strncmp((const char *)msg[0].data,"start",5)==0) break;
+    else printf("Retry please.");
+  }
+
+  //开始发送
+  printf("start send app from host flash to slave\r\n");
+  uint32_t app_size=*((volatile uint32_t *)APP_START_ADDR);
+  printf("current app_size:%d Byte\r\n",app_size);
+	HAL_Delay(1000);
+  CAN_Send_App_From_Flash(stdId,app_size);
+  printf("send app finished!");
+  
 
   /* USER CODE END 2 */
 

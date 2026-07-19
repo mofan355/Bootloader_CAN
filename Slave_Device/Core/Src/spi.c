@@ -21,7 +21,7 @@
 #include "spi.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "w25q64.h"
 /* USER CODE END 0 */
 
 SPI_HandleTypeDef hspi1;
@@ -88,7 +88,12 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN SPI1_MspInit 1 */
+    //PB0  -------->SPI1_CS 
+    GPIO_InitStruct.Pin=W25Q64_CS_PIN;
+    GPIO_InitStruct.Mode=GPIO_MODE_OUTPUT_PP;
+    HAL_GPIO_Init(W25Q64_CS_PORT,&GPIO_InitStruct);
 
+    W25Q64_CS_UP;
   /* USER CODE END SPI1_MspInit 1 */
   }
 }

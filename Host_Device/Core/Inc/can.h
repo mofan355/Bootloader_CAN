@@ -50,6 +50,7 @@ void CAN_FilterConfig(void);
 void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len);
 void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len);
 void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount);
+void CAN_Send_App_From_Flash(uint32_t stdId,uint16_t len);
 void printf_Infor_from_CAN(RxMsg rxMsg[],uint16_t MsgCount);
 /* USER CODE END Prototypes */
 

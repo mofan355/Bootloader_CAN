@@ -23,6 +23,7 @@
 /* USER CODE BEGIN 0 */
 #include "string.h"
 #include "stdio.h"
+#include "AppUpdate.h"
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -162,9 +163,12 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
 
 void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
 {
-  uint8_t send_count=(uint8_t)(len/8);
+  uint16_t send_count=(uint16_t)(len/8);
   if(len%8!=0) send_count++;
-  CAN_SendMsg(stdId,&send_count,1);
+  uint8_t lowByte=(uint8_t)(send_count&0xFF);
+  uint8_t highByte=(uint8_t)(send_count>>8);
+  uint8_t temp_arry[3]={lowByte,highByte};
+  CAN_SendMsg(stdId,temp_arry,2);
 
   for(uint16_t j=0;j<len;j+=8)
   {
@@ -183,7 +187,7 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
   while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
   CAN_RxHeaderTypeDef rxHeader;
   uint8_t temp[8]={0};
-  //得到报文数量
+  //得到待接收报文总数量
   HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,temp);
   *MsgCount=temp[0]|(temp[1]<<8);
   //接收报文内容
@@ -194,6 +198,37 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
     HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,rxMsg[i].data);
     rxMsg[i].stdId=rxHeader.StdId;
     rxMsg[i].len=rxHeader.DLC;
+  }
+}
+
+void CAN_Send_App_From_Flash(uint32_t stdId,uint16_t len)
+{
+  //发送app大小Byte
+	printf("start send\r\n");
+  uint8_t temp_arr[2]={(uint8_t)(len&0xFF),(uint8_t)(len>>8)};
+  CAN_SendMsg_long(stdId,temp_arr,2);
+	printf("send app size successfully\r\n");
+	
+  uint8_t buf[1024]={0};
+  uint16_t read_count=len/1024;
+  if((len%1024)!=0) read_count++;
+
+  uint16_t read_size;
+  for(int i=0;i<read_count;i++)
+  {
+    //判断此次读取规模
+    if((read_count%1024!=0)&&(i+1==read_count)) read_size=len%1024;
+    else read_size=1024;
+    
+    //读取flash中的app到buf中
+    for(int j=0;j<read_size;j++)
+    {
+      buf[j]=*((volatile uint8_t *)APP_RUN_ADDR+j);
+    }
+
+    //发送当前读到的app给slave
+    CAN_SendMsg_long(stdId,buf,read_size);
+    HAL_Delay(10);
   }
 }
 

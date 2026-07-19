@@ -22,6 +22,7 @@
 
 /* USER CODE BEGIN 0 */
 #include "stdio.h"
+#include "string.h"
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -158,10 +159,12 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
 
 void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
 {
-  uint8_t send_count=(uint8_t)(len/8);
+  uint16_t send_count=(uint16_t)(len/8);
   if(len%8!=0) send_count++;
-	printf("send_count:%d\r\n",send_count);
-  CAN_SendMsg(stdId,&send_count,1);
+  uint8_t lowByte=(uint8_t)(send_count&0xFF);
+  uint8_t highByte=(uint8_t)(send_count>>8);
+  uint8_t temp_arry[3]={lowByte,highByte};
+  CAN_SendMsg(stdId,temp_arry,2);
 
   for(uint16_t j=0;j<len;j+=8)
   {
@@ -184,6 +187,7 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
   //得到报文数量
   HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,temp);
   *MsgCount=temp[0]|(temp[1]<<8);
+  // printf("MsgCount-->%dseconds\r\n",*MsgCount);
   //接收报文内容
   for(int i=0;i<*MsgCount;i++)
   {
@@ -192,6 +196,16 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
     HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,&rxHeader,rxMsg[i].data);
     rxMsg[i].stdId=rxHeader.StdId;
     rxMsg[i].len=rxHeader.DLC;
+  }
+}
+
+void CNA_Receive_App_to_FLASH(uint16_t app_size)
+{
+  uint16_t receive_count=0;
+
+  for(int i=0;i<receive_count;i++)
+  {
+
   }
 }
 

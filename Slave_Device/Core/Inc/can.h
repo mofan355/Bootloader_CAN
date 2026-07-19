@@ -35,6 +35,7 @@ extern "C" {
 extern CAN_HandleTypeDef hcan;
 
 /* USER CODE BEGIN Private defines */
+#define stdID 0x100
 typedef struct
 {
   uint32_t stdId;

@@ -4,6 +4,7 @@
 #include "usart.h"
 
 #define APP_START_ADDR 0X8010000
+#define APP_RUN_ADDR APP_START_ADDR+4
 #define PAGE_SIZE 0X400
 
 uint16_t Receive_app_from_UART(uint8_t *data,uint16_t len);

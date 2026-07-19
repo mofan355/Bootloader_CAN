@@ -1,0 +1,23 @@
+#ifndef __W25Q64_H__
+#define __W25Q64_H__
+
+#include "stm32f1xx_hal.h"
+
+#define W25Q64_CS_PORT GPIOB
+#define W25Q64_CS_PIN GPIO_PIN_0
+#define WRITE_ENABLE 0x06
+#define WRITE_DISABLE 0x04
+#define PAGE_PROGRAM 0x02
+#define BLOCK_ERASE_64KB 0xD8
+#define BLOCK_ERASE_32KB 0x52
+#define SECTOR_ERASE_4KB 0x20
+#define CHIP_ERASE 0xC7//0x60
+#define JEDEC_ID 0x9F
+#define READ_DATA 0x03
+#define W25Q64_CS_UP HAL_GPIO_WritePin(W25Q64_CS_PORT,W25Q64_CS_PIN,GPIO_PIN_SET)
+#define W25Q64_CS_DOWN HAL_GPIO_WritePin(W25Q64_CS_PORT,W25Q64_CS_PIN,GPIO_PIN_RESET)
+
+void W25Q64_SendCMD(uint8_t data);
+void W25Q64_WriteInit(void);
+
+#endif

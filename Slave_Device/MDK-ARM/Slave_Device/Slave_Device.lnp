@@ -26,6 +26,8 @@
 "slave_device\stm32f1xx_hal_tim_ex.o"
 "slave_device\stm32f1xx_hal_uart.o"
 "slave_device\system_stm32f1xx.o"
+"slave_device\w25q64.o"
+"slave_device\eeprom.o"
 --library_type=microlib --strict --scatter "Slave_Device\Slave_Device.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
