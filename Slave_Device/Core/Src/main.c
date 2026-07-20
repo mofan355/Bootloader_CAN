@@ -99,11 +99,16 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
 
-  uint8_t spi_buf[4]={0};
-  W25Q64_CS_DOWN;
-  W25Q64_SendCMD(JEDEC_ID);
-  HAL_SPI_Receive(&hspi1,spi_buf,3,1000);
-  printf("%d %d %d\r\n",spi_buf[0],spi_buf[1],spi_buf[2]);
+  uint32_t spi_addr=0x00;
+  uint8_t spi_data[]={0xA5,0x5A};
+  W25Q64_Erase(SECTOR_ERASE_4KB,spi_addr);
+  W25Q64_WaitBUSY();
+  printf("sector erase finished.\r\n");
+  W25Q64_Write(spi_addr,spi_data,2);
+  W25Q64_WaitBUSY();
+  uint8_t spi_buf[8]={0};
+  W25Q64_Read(spi_addr,spi_buf,2);
+  printf("%x %x\r\n",spi_buf[0],spi_buf[1]);
 
   printf("slave start...\r\n");
   //存储报文信息
@@ -117,11 +122,11 @@ int main(void)
   /* USER CODE END WHILE */
   CAN_ReceiveMsg(msg,&MsgCount);
   printf_Infor_from_CAN(msg,MsgCount);
+  uint8_t current_version[5]={0};
   if(MsgCount==1&&strcmp((const char*)msg[0].data,"version")==0)
     {
-      uint8_t data[5]={0};
-      EEPROM_Read_Bytes(CURRENT_VERSION_NUM_STRADDR,data,VERSION_NUM_SIZE);
-      CAN_SendMsg_long(stdID,data,strlen((const char*)data));
+      EEPROM_Read_Bytes(CURRENT_VERSION_NUM_STRADDR,current_version,VERSION_NUM_SIZE);
+      CAN_SendMsg_long(stdID,current_version,strlen((const char*)current_version));
 		  printf("send version num successfully\r\n");
     }
 
@@ -131,18 +136,19 @@ int main(void)
   printf_Infor_from_CAN(msg,MsgCount);
   
   //更新操作
+  uint8_t backup_version[5]={0};
   if(MsgCount==1&&strcmp((const char*)msg[0].data,"YES")==0)
   {
     //备份旧版本app到w25q64
-    //获取当前版本和之前备份的版本
-    uint8_t current_version[4]={0};
-    uint8_t backup_version[4]={0};
-    EEPROM_Read_Bytes(CURRENT_VERSION_NUM_STRADDR,current_version,VERSION_NUM_SIZE);
+    //获取之前备份的版本
     EEPROM_Read_Bytes(BACKUP_VERSION_NUM_STRADDR,backup_version,VERSION_NUM_SIZE);
     //版本不一致，备份当前版本
     if(memcmp(current_version,backup_version,VERSION_NUM_SIZE)!=0)
     {
-      
+      //将要备份的app写入到w25q64
+
+      //将要备份app的版本号和大小写入到eeprom中
+
       printf("backup successfully!\r\n");
     }
     //版本一致，不需要重复备份
