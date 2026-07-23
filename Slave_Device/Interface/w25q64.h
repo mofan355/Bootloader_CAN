@@ -3,6 +3,10 @@
 
 #include "stm32f1xx_hal.h"
 
+#define W25Q64_PAGE_SIZE 0x100//256B
+#define W25Q64_SECTOR_SIZE 0x1000//4KB
+#define W25Q64_BLOCK_SIZE 0X10000//64KB
+
 #define W25Q64_CS_PORT GPIOB
 #define W25Q64_CS_PIN GPIO_PIN_0
 #define WRITE_ENABLE 0x06
@@ -26,6 +30,9 @@ HAL_StatusTypeDef W25Q64_WaitBUSY(void);
 HAL_StatusTypeDef W25Q64_SendCMD(uint8_t cmd);
 HAL_StatusTypeDef W25Q64_Erase(uint8_t cmd,uint32_t addr);
 void W25Q64_Write(uint32_t addr,uint8_t *data,uint16_t write_size);
-void W25Q64_Read(uint32_t addr,uint8_t buf[],uint16_t read_size);
+void W25Q64_Read(uint32_t addr,uint8_t buf[],uint32_t read_size);
+void W25Q64_AutoErase(uint32_t addr,uint32_t size);
+void W25Q64_PagesWrite(uint32_t addr,uint8_t *data,uint32_t write_size);
+void W25Q64_Test(void);
 
 #endif

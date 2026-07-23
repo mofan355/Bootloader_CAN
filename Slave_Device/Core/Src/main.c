@@ -99,16 +99,7 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
 
-  uint32_t spi_addr=0x00;
-  uint8_t spi_data[]={0xA5,0x5A};
-  W25Q64_Erase(SECTOR_ERASE_4KB,spi_addr);
-  W25Q64_WaitBUSY();
-  printf("sector erase finished.\r\n");
-  W25Q64_Write(spi_addr,spi_data,2);
-  W25Q64_WaitBUSY();
-  uint8_t spi_buf[8]={0};
-  W25Q64_Read(spi_addr,spi_buf,2);
-  printf("%x %x\r\n",spi_buf[0],spi_buf[1]);
+  W25Q64_Test();
 
   printf("slave start...\r\n");
   //存储报文信息
@@ -146,7 +137,7 @@ int main(void)
     if(memcmp(current_version,backup_version,VERSION_NUM_SIZE)!=0)
     {
       //将要备份的app写入到w25q64
-
+      
       //将要备份app的版本号和大小写入到eeprom中
 
       printf("backup successfully!\r\n");
