@@ -6,6 +6,7 @@
 #define DEV_ADDR 0xA0
 #define DEV_ADDR_W 0XA0
 #define DEV_ADDR_R 0XA1
+
 #define CURRENT_VERSION_NUM_STRADDR 0X00
 #define CURRENT_VERSION_SIZE_STRADDR 0x08
 #define BACKUP_VERSION_NUM_STRADDR 0x10
@@ -18,5 +19,6 @@ uint8_t EEPROM_Read_Byte(uint16_t addr);
 void EEPROM_Write_Bytes(uint16_t addr,uint8_t *data);
 void EEPROM_Read_Bytes(uint16_t addr,uint8_t buf[],uint16_t read_size);
 void EEPROM_Erase(uint16_t addr,uint16_t erase_size);
+void EEPROM_Test(void);
 
 #endif

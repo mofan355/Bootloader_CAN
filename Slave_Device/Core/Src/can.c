@@ -23,6 +23,7 @@
 /* USER CODE BEGIN 0 */
 #include "stdio.h"
 #include "string.h"
+#include "app.h"
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan;
@@ -39,15 +40,15 @@ void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 36;
+  hcan.Init.Prescaler = 24;
   hcan.Init.Mode = CAN_MODE_NORMAL;
-  hcan.Init.SyncJumpWidth = CAN_SJW_2TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_3TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
+  hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = ENABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
+  hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
@@ -177,11 +178,18 @@ void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
   }
 }
 
+/**
+*@brief CAN接收报文
+*
+*@param rxMsg 用来存储报文的数组，每一位可存储一个报文
+*
+*@param MsgCount 接收到的报文个数，一个报文最多8 bytes
+*/
 void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
 {
   //等待接收缓冲区有数据
   while(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0)==0);
-	printf("start receive\r\n");
+	// printf("start receive\r\n");
   CAN_RxHeaderTypeDef rxHeader;
   uint8_t temp[8]={0};
   //得到报文数量
@@ -199,13 +207,57 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
   }
 }
 
-void CNA_Receive_App_to_FLASH(uint16_t app_size)
+/**
+ * @brief CAN接收app内容并存储到flash中
+ * 
+ * @param app_size 本次app大小
+ */
+void CAN_Receive_App_to_FLASH(uint16_t app_size)
 {
-  uint16_t receive_count=0;
-
-  for(int i=0;i<receive_count;i++)
+  //计算需接收次数，每次接收1KB
+  uint16_t receive_count=app_size/1024;
+  if(app_size%1024!=0) receive_count+=1;
+  RxMsg rxMsg[128]={0};
+	uint16_t MsgCount=0;
+  uint32_t addr=APP_START_ADDR_FLASH;
+	uint16_t received_size=0;
+  for(uint16_t i=0;i<receive_count;i++)
   {
+    //接收报文
+    CAN_ReceiveMsg(rxMsg,&MsgCount);
 
+    //写入flash
+    for(int j=0;j<MsgCount;j++)
+    {
+      //根据最后一条报文的数据长度，选择最佳写入模式
+      if(j+1==MsgCount)
+      {
+        //如果长度为8，以FLASH_TYPEPROGRAM_DOUBLEWORD模式写入
+        if(rxMsg[j].len==8) 
+        {
+          Write_Flash(FLASH_TYPEPROGRAM_DOUBLEWORD,addr
+            ,rxMsg[j].data,rxMsg[j].len);
+        }
+        //否则，以FLASH_TYPEPROGRAM_HALFWORD模式写入
+        else 
+        {
+          Write_Flash(FLASH_TYPEPROGRAM_HALFWORD,addr
+            ,rxMsg[j].data,rxMsg[j].len);
+        }
+      }
+      //其他报文以FLASH_TYPEPROGRAM_DOUBLEWORD模式快速写入，每次写入rxMsg[j].len bytes
+      else 
+      {
+          Write_Flash(FLASH_TYPEPROGRAM_DOUBLEWORD,addr
+            ,rxMsg[j].data,rxMsg[j].len);
+            
+          //地址偏移,rxMsg[j].len通常为8
+          addr+=rxMsg[j].len;
+      }
+			received_size+=rxMsg[j].len;
+    }
+		
+	printf("%d\r\n",received_size);
   }
 }
 

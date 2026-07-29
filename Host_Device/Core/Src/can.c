@@ -40,11 +40,11 @@ void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 36;
+  hcan.Init.Prescaler = 24;
   hcan.Init.Mode = CAN_MODE_NORMAL;
-  hcan.Init.SyncJumpWidth = CAN_SJW_2TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_3TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
+  hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = ENABLE;
@@ -136,6 +136,7 @@ void CAN_FilterConfig(void)
 void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
 {
   while(HAL_CAN_GetTxMailboxesFreeLevel(&hcan)==0);
+//	printf("can start send\r\n");
   CAN_TxHeaderTypeDef txHeader;
   txHeader.StdId=stdId;
   txHeader.DLC=len;
@@ -146,29 +147,36 @@ void CAN_SendMsg(uint32_t stdId,uint8_t *data,uint16_t len)
   
   if(txMailtBox==CAN_TX_MAILBOX0)
   {
+//    printf("CAN_TX_MAILBOX0\r\n");
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK0)==0);
 		__HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK0);
   }
   else if(txMailtBox==CAN_TX_MAILBOX1)
   {
+//    printf("CAN_TX_MAILBOX1\r\n");
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK1)==0);
     __HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK1);
   }
   else if(txMailtBox==CAN_TX_MAILBOX2)
   {
+//    printf("CAN_TX_MAILBOX2\r\n");
     while(__HAL_CAN_GET_FLAG(&hcan,CAN_FLAG_TXOK2)==0);
     __HAL_CAN_CLEAR_FLAG(&hcan,CAN_FLAG_TXOK2);
   }
+  HAL_Delay(10);
 }
 
 void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
 {
+	//计算发送次数（报文个数），8 byte/次
   uint16_t send_count=(uint16_t)(len/8);
   if(len%8!=0) send_count++;
+	//发送报文个数
   uint8_t lowByte=(uint8_t)(send_count&0xFF);
   uint8_t highByte=(uint8_t)(send_count>>8);
   uint8_t temp_arry[3]={lowByte,highByte};
   CAN_SendMsg(stdId,temp_arry,2);
+  HAL_Delay(10);
 
   for(uint16_t j=0;j<len;j+=8)
   {
@@ -203,33 +211,29 @@ void CAN_ReceiveMsg(RxMsg rxMsg[],uint16_t *MsgCount)
 
 void CAN_Send_App_From_Flash(uint32_t stdId,uint16_t len)
 {
-  //发送app大小Byte
-	printf("start send\r\n");
-  uint8_t temp_arr[2]={(uint8_t)(len&0xFF),(uint8_t)(len>>8)};
-  CAN_SendMsg_long(stdId,temp_arr,2);
-	printf("send app size successfully\r\n");
-	
   uint8_t buf[1024]={0};
-  uint16_t read_count=len/1024;
-  if((len%1024)!=0) read_count++;
+  //计算需要读取多少次flash，每次读取1KB
+  uint16_t signle_read_size=1024;
 
-  uint16_t read_size;
-  for(int i=0;i<read_count;i++)
-  {
-    //判断此次读取规模
-    if((read_count%1024!=0)&&(i+1==read_count)) read_size=len%1024;
-    else read_size=1024;
-    
-    //读取flash中的app到buf中
-    for(int j=0;j<read_size;j++)
+  for(uint16_t i=0;i<len;i++)
     {
-      buf[j]=*((volatile uint8_t *)APP_RUN_ADDR+j);
+        //从flash中读取数据
+        uint16_t remainder=i%signle_read_size;
+        buf[remainder]=*((volatile uint8_t*)(APP_START_ADDR+i));
+        //buf存满1KB时,发送
+        if(remainder==1023)
+        {
+            CAN_SendMsg_long(stdId,buf,signle_read_size);
+            printf("%x\r\n",buf[0]);
+            HAL_Delay(1000);
+        }
+        else if(i+1==len)
+        {
+            CAN_SendMsg_long(stdId,buf,remainder+1);
+            printf("%x\r\n",buf[0]);
+            HAL_Delay(1000);
+        }
     }
-
-    //发送当前读到的app给slave
-    CAN_SendMsg_long(stdId,buf,read_size);
-    HAL_Delay(10);
-  }
 }
 
 void printf_Infor_from_CAN(RxMsg rxMsg[],uint16_t MsgCount)

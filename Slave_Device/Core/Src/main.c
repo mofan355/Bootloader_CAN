@@ -29,6 +29,7 @@
 #include "string.h"
 #include "EEPROM.h"
 #include "w25q64.h"
+#include "app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,26 +100,35 @@ int main(void)
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
 
-  W25Q64_Test();
+  uint8_t current_version[4]={0};
+  uint8_t current_app_size_arr[4]={0};
+  uint32_t current_app_size=0;
+  //读取当前版本号
+  EEPROM_Read_Bytes(CURRENT_VERSION_NUM_STRADDR,current_version,VERSION_NUM_SIZE);
+	printf("current_version:");
+	for(int i=0;i<VERSION_NUM_SIZE;i++)
+		{
+				printf("%c",current_version[i]);
+		}
+  
+  //读取当前版本大小,
+  EEPROM_Read_Bytes(CURRENT_VERSION_SIZE_STRADDR,current_app_size_arr,APP_SIZE_STRLEN);
+  current_app_size=current_app_size_arr[0]|(current_app_size_arr[1]<<8)|(current_app_size_arr[2]<<16)|(current_app_size_arr[3]<<24);
+  printf("\r\ncurrent_app_size:%d\r\n",current_app_size);
 
   printf("slave start...\r\n");
   //存储报文信息
   RxMsg msg[8]={0};
   //报文数量
   uint16_t MsgCount=0;
-  // printf("Receive app size.\r\n");
-  //   CAN_ReceiveMsg(msg,&MsgCount);
-  //   uint16_t app_size=(msg[0].data[0])|(msg[0].data[1]<<8);
-  //   printf("app_size:%d Byte\r\n",app_size);
   /* USER CODE END WHILE */
+  //接收到version，发送版本信息
   CAN_ReceiveMsg(msg,&MsgCount);
   printf_Infor_from_CAN(msg,MsgCount);
-  uint8_t current_version[5]={0};
   if(MsgCount==1&&strcmp((const char*)msg[0].data,"version")==0)
     {
-      EEPROM_Read_Bytes(CURRENT_VERSION_NUM_STRADDR,current_version,VERSION_NUM_SIZE);
-      CAN_SendMsg_long(stdID,current_version,strlen((const char*)current_version));
-		  printf("send version num successfully\r\n");
+      CAN_SendMsg_long(stdID,current_version,VERSION_NUM_SIZE);
+		  printf("send current_version successfully\r\n");
     }
 
   //接收版本比较结果
@@ -130,43 +140,78 @@ int main(void)
   uint8_t backup_version[5]={0};
   if(MsgCount==1&&strcmp((const char*)msg[0].data,"YES")==0)
   {
-    //备份旧版本app到w25q64
-    //获取之前备份的版本
+    /*
+      备份旧版本app到w25q64
+    */
+    //获取之前备份的版本号
     EEPROM_Read_Bytes(BACKUP_VERSION_NUM_STRADDR,backup_version,VERSION_NUM_SIZE);
-    //版本不一致，备份当前版本
+    //版本不一致，从flash中读取并备份当前版本
     if(memcmp(current_version,backup_version,VERSION_NUM_SIZE)!=0)
     {
+      printf("Starting backup.\r\n");
       //将要备份的app写入到w25q64
-      
-      //将要备份app的版本号和大小写入到eeprom中
-
+      W25Q64_Get_App_From_Flash(APP_START_ADDR_FLASH,current_app_size);
+      //将flash中的app的版本号和大小写入到eeprom中
+      EEPROM_Write_Bytes(BACKUP_VERSION_NUM_STRADDR,current_version);
+      EEPROM_Write_Bytes(BACKUP_VERSION_SIZE_STRADDR,current_app_size_arr);
       printf("backup successfully!\r\n");
     }
     //版本一致，不需要重复备份
-    else printf("No need backup.");
+    else printf("No need backup.\r\n");
 
-    //接收新版本app并写入到flash
-    //发送start告诉host开始发送
-    uint8_t *data="start";
+
+    /*
+    接收新版本app并写入到flash
+    */
+    //发送start,告诉host开始发送
+    uint8_t *data="start1";
     CAN_SendMsg_long(stdID,data,strlen((const char *)data));
-		printf("Send 'start' successfully.\r\n");
-    //获取最新app大小Byte
-		printf("Receive app size.\r\n");
+		printf("Send 'start1' successfully.\r\n");
+
+    //接收最新app版本号
+    printf("Receiving app version num.\r\n");
+    uint8_t last_version[4]={0};
+    CAN_ReceiveMsg(msg,&MsgCount);
+    memcpy(last_version,msg[0].data,4);
+    printf("Received app version num:");
+    for(int i=0;i<4;i++)
+    {
+      printf("%c",last_version[i]);
+    }
+
+    //接收最新app大小，Byte
+		printf("\r\nReceiving app size.\r\n");
+    memset(msg,0,sizeof(msg));
     CAN_ReceiveMsg(msg,&MsgCount);
     uint16_t app_size=(msg[0].data[0])|(msg[0].data[1]<<8);
-    printf("app_size:%d Byte\r\n",app_size);
-    //开始接收并写入
-    
+    printf("Received app_size:%d Byte\r\n",app_size);
 
-    printf("receive successfully!");
+    //擦除flash
+    Flash_Erase(APP_START_ADDR_FLASH,app_size);
+    printf("Flash_Erase finished.\r\n");
+
+    data="start2";
+    CAN_SendMsg_long(stdID,data,strlen((const char *)data));
+		printf("Send 'start2' successfully.\r\n");
+
+    //开始接收app内容并写入
+    CAN_Receive_App_to_FLASH(app_size);
+
+    //更新EEPROM中CURRENT_VERSION_NUM_STRADDR和CURRENT_VERSION_SIZE_STRADDR处的值
+    EEPROM_Write_Bytes(CURRENT_VERSION_NUM_STRADDR,last_version);
+    uint8_t last_app_size[2]={msg[0].data[0],msg[0].data[1]};
+    EEPROM_Write_Bytes(CURRENT_VERSION_SIZE_STRADDR,last_app_size);
+
+    printf("receive successfully!\r\n");
   }
   //不更新
   else if(MsgCount==1&&strcmp((const char*)msg[0].data,"NO")==0)
   {
-    printf("No update needed.\r\n");
+    printf("No needed update .\r\n");
   }
-
-  //跳转到应用程序
+	
+	//跳转到app
+	jump();
   
   /* USER CODE END 2 */
 

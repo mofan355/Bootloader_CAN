@@ -9,6 +9,7 @@
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\Drivers\\CMSIS\\Device\\ST\\STM32F1xx\\Include",
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\Drivers\\CMSIS\\Include",
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\Interface",
+                "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\App",
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\MDK-ARM",
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\Core\\Src",
                 "e:\\code_embadded\\BootLoader_CAN\\Slave_Device\\Drivers\\STM32F1xx_HAL_Driver\\Src"

@@ -3,11 +3,6 @@
 
 uint16_t Receive_app_from_UART(uint8_t *data,uint16_t len)
 {
-	//存储app大小到前四个字节
-  while(HAL_FLASH_Unlock()!=0);
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,APP_START_ADDR,len);
-  HAL_FLASH_Lock();
-
   uint16_t receive_count=len/256;
   if(len%256!=0) receive_count++;
   uint16_t total_len=0;
@@ -30,7 +25,7 @@ uint16_t Receive_app_from_UART(uint8_t *data,uint16_t len)
     for(int j=0;j<temp_len;j+=2)
     {
       //前四个字节用来存储app大小，app内容从第四个字节开始写
-      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,APP_RUN_ADDR+i*256+j,(data[j+1]<<8)|data[j]);
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,APP_START_ADDR+i*256+j,(data[j+1]<<8)|data[j]);
     }
 
     HAL_FLASH_Lock();
@@ -38,7 +33,7 @@ uint16_t Receive_app_from_UART(uint8_t *data,uint16_t len)
   return total_len;
 }
 
-void Flash_Erase(uint32_t start_addr,uint16_t file_size)
+void Flash_Erase(uint32_t start_addr,uint32_t file_size)
 {
     //计算需要擦除的页数
     uint8_t page_count=file_size/PAGE_SIZE;

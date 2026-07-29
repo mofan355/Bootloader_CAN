@@ -96,10 +96,18 @@ int main(void)
   /* USER CODE BEGIN 2 */
   CAN_FilterConfig();
   HAL_CAN_Start(&hcan);
+	
+	printf("current version in host:");
+  for(int i=0;i<4;i++)
+  {
+    printf("%c",*((volatile uint8_t *)(APP_VERSION_NUM_ADDR+i)));
+  }
+  printf("\r\nsize:%lu\r\n",*((volatile uint32_t *)APP_SIZE_ADDR));
+	
   printf("host start...\r\n");
-  uint8_t *host_version="v1.0";
+  uint8_t *host_version=NULL;
   uint8_t *slave_version=NULL;
-	//向从机获取当前版本信息
+	//向从机请求从机当前版本信息
   uint8_t *data="version";
   CAN_SendMsg_long(stdId,data,strlen((const char*)data));
   printf("access information of current version of slave.\r\n");
@@ -111,75 +119,135 @@ int main(void)
   printf_Infor_from_CAN(msg,MsgCount);
 	
   //向电脑端获取最新版本信息
-  printf("latest version\r\n");
+  printf("access latest version\r\n");
   uint8_t rxMsg[512]={0};
   uint16_t rxLen=0;
   rxLen=Receive_Info_from_UART(rxMsg,4);
   printf("uart receive data: %s-->%d\r\n",rxMsg,rxLen);
+  //暂存最新版本号
+  uint8_t last_version[4]={0};
+  memcpy(last_version,rxMsg,4);
 
-  //开始比较版本
+  //存储从机版本与最新版本的比较结果
   uint8_t *compare_result="NO";
   //比较slave版本和最新版本是否一致
 	printf("start compare version between slave and latest:Need update(YES)/No need(NO)\r\n");
-  if(strncmp((const char*)slave_version,(const char*)rxMsg,4)==0)
+  // if(strncmp((const char*)slave_version,(const char*)rxMsg,4)==0)
+  //一致，不需要更新
+  if(memcmp(slave_version,rxMsg,4)==HAL_OK)
   {
-    //一致，不需要更新
-    printf("NO\r\n");
+		printf("Slave no need update.\r\n");
+		//发送版本比较结果给从机，YES表示需要更新，NO表示不需要更新
+		CAN_SendMsg_long(stdId,compare_result,strlen((const char*)compare_result));
+		printf("send '%s' successfully.\r\n",compare_result);
   }
+  //不一致，需要更新
   else
   {
-    //不一致，需要更新
+		//更新主机中的版本
+		
     compare_result="YES";
-    printf("YES\r\n");
-    printf("start compare version between host and latest.\r\n");
-    if(strncmp((const char*)host_version,(const char*)rxMsg,4)==0)
+    printf("Slave need update.\r\n");
+    printf("Starting update host and compare version between host and latest.\r\n");
+		
+		//比较主机中的版本与最新版本是否一致
+    //从flash中读取host中存有的app的版本号
+    host_version=(volatile uint8_t *)APP_VERSION_NUM_ADDR;
+    // if(strncmp((const char*)host_version,(const char*)rxMsg,4)==0)
+    //一致，不需要更新host现存版本
+    if(memcmp(host_version,rxMsg,4)==HAL_OK)
     {
-      //一致，不需要更新host现存版本
       printf("No need to update app of host\r\n");
     }
+    //不一致，需要更新host现存版本
     else
     {
-      //不一致，需要更新host现存版本
       printf("Start to update app of host\r\n");
       //得到新程序大小Byte
-      printf("input file size(Byte):\r\n");
+      printf("Inputing file size(Byte) please:\r\n");
       Receive_Info_from_UART(rxMsg,16);
       rxLen=atoi((const char*)rxMsg);
       printf("file size:%d Byte\r\n",rxLen);
       //擦除flash
       printf("start erase special flash\r\n");
-      Flash_Erase(APP_START_ADDR,rxLen);
+      Flash_Erase(APP_VERSION_NUM_ADDR,rxLen);
       printf("flash erase successfully.\r\n");
+
+      //存储最新app的版本和大小
+      while(HAL_FLASH_Unlock()!=HAL_OK);
+      //存储app的版本号
+      //暂存新的版本号
+      uint32_t vn=((uint32_t)last_version[3]<<24)|((uint32_t)last_version[2]<<16)|((uint32_t)last_version[1]<<8)|last_version[0];
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,APP_VERSION_NUM_ADDR,vn);
+	    //存储app大小
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,APP_SIZE_ADDR,rxLen);
+      HAL_FLASH_Lock();
 
       //通过uart从电脑接收新版本程序并写入到flash
 			printf("start receive app from UART to host flash\r\n");
       rxLen=Receive_app_from_UART(rxMsg,rxLen);
       printf("received app:%d Byte.\r\n",rxLen);
+      printf("Host have updated.\r\n");
     }
-  }
-  
-  //发送版本比较结果给从机，YES表示需要更新，NO表示不需要更新
-  CAN_SendMsg_long(stdId,compare_result,strlen((const char*)compare_result));
-  printf("send '%s' successfully.\r\n",compare_result);
+		
+		//发送版本比较结果给从机，YES表示需要更新，NO表示不需要更新
+		CAN_SendMsg_long(stdId,compare_result,strlen((const char*)compare_result));
+		printf("send '%s' successfully.\r\n",compare_result);
 
-  //读取host的flash中的最新版本程序并发送给slave
-  //等待从机备份好，发来start再开始发送
-  printf("waitting 'start' of slave.\r\n");
-  while(1)
+		//读取host的flash中的最新版本程序并发送给slave
+		//等待从机备份好，发来start1再开始发送
+		printf("waitting 'start1' of slave.\r\n");
+		while(1)
+		{
+			CAN_ReceiveMsg(msg,&rxLen);
+			printf_Infor_from_CAN(msg,rxLen);
+			if(strncmp((const char *)msg[0].data,"start1",6)==0) break;
+			else printf("Retry please.");
+		}
+
+		//开始发送
+		printf("start send app from host flash to slave\r\n");
+    //发送数据版本号
+    printf("current version:");
+    for(int i=0;i<4;i++)
+    {
+      printf("%c",last_version[i]);
+    }
+    printf("\r\nSending app version num.\r\n");
+    CAN_SendMsg_long(stdId,last_version,4);
+    printf("Sending app version num successfully\r\n");
+
+		//发送数据大小Byte
+		uint32_t app_size=*((volatile uint32_t *)APP_SIZE_ADDR);
+		printf("current app_size:%lu Byte\r\n",app_size);
+		printf("Sending app size.\r\n");
+		uint8_t temp_arr[2]={(uint8_t)(app_size&0xFF),(uint8_t)(app_size>>8)};
+		CAN_SendMsg_long(stdId,temp_arr,2);
+		printf("Sending app size successfully\r\n");
+
+    //等待从机备份好，发来start2再开始发送
+		printf("waitting 'start2' of slave.\r\n");
+		while(1)
+		{
+			CAN_ReceiveMsg(msg,&rxLen);
+			printf_Infor_from_CAN(msg,rxLen);
+			if(strncmp((const char *)msg[0].data,"start2",6)==0) break;
+			else printf("Retry please.");
+		}
+
+		//发送数据内容
+		printf("Starting send app content...\r\n");
+		CAN_Send_App_From_Flash(stdId,app_size);
+		printf("send app finished!\r\n");
+  }
+  printf("bootloader finished.\r\n");
+  printf("last version:");
+  for(int i=0;i<4;i++)
   {
-    CAN_ReceiveMsg(msg,&rxLen);
-    printf_Infor_from_CAN(msg,rxLen);
-    if(strncmp((const char *)msg[0].data,"start",5)==0) break;
-    else printf("Retry please.");
+    printf("%c",*((volatile uint8_t *)(APP_VERSION_NUM_ADDR+i)));
   }
-
-  //开始发送
-  printf("start send app from host flash to slave\r\n");
-  uint32_t app_size=*((volatile uint32_t *)APP_START_ADDR);
-  printf("current app_size:%d Byte\r\n",app_size);
-	HAL_Delay(1000);
-  CAN_Send_App_From_Flash(stdId,app_size);
-  printf("send app finished!");
+  printf("\r\nsize:%lu",*((volatile uint32_t *)APP_SIZE_ADDR));
+  
   
 
   /* USER CODE END 2 */

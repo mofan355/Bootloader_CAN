@@ -1,15 +1,16 @@
 #include "w25q64.h"
 #include "spi.h"
 #include "stdio.h"
+#include "app.h"
 
 HAL_StatusTypeDef W25Q64_SendByte(uint8_t byte)
 {
-    return HAL_SPI_Transmit(&hspi1,&byte,1,1000);
+    return HAL_SPI_Transmit(&hspi1,&byte,1,2000);
 }
 
 HAL_StatusTypeDef W25Q64_SendBytes(uint8_t *bytes,uint16_t size)
 {
-    return HAL_SPI_Transmit(&hspi1,bytes,size,1000);
+    return HAL_SPI_Transmit(&hspi1,bytes,size,2000);
 }
 
 HAL_StatusTypeDef W25Q64_SendAddr(uint32_t addr)
@@ -25,7 +26,7 @@ HAL_StatusTypeDef W25Q64_WaitBUSY(void)
     W25Q64_SendByte(READ_STATUS_REGISTER_1);
     while(buf&0x01)
     {
-        HAL_SPI_Receive(&hspi1,&buf,1,1000);
+        HAL_SPI_Receive(&hspi1,&buf,1,2000);
 //        printf("%x\r\n",buf);
     }
     W25Q64_CS_UP;
@@ -36,7 +37,7 @@ HAL_StatusTypeDef W25Q64_SendCMD(uint8_t cmd)
 {
     W25Q64_CS_DOWN;
     //发送cmd
-    HAL_StatusTypeDef result=HAL_SPI_Transmit(&hspi1,&cmd,1,1000);
+    HAL_StatusTypeDef result=HAL_SPI_Transmit(&hspi1,&cmd,1,2000);
     if(result!=HAL_OK)
     {
         printf("W25Q64 send cmd ERRO %d\r\n",result);
@@ -72,12 +73,14 @@ void W25Q64_Read(uint32_t addr,uint8_t *buf,uint32_t read_size)
     W25Q64_CS_DOWN;
     W25Q64_SendByte(READ_DATA);
     W25Q64_SendAddr(addr);
-    HAL_SPI_Receive(&hspi1,buf,read_size,1000);
+    HAL_SPI_Receive(&hspi1,buf,read_size,2000);
     W25Q64_CS_UP;
 }
 
 void W25Q64_AutoErase(uint32_t addr,uint32_t size)
 {
+		if(size==0) return;
+	
     uint32_t first_sector_addr=addr&0xFFF000;
     uint32_t last_sector_addr=(addr+size-1)&0xFFF000;
 
@@ -139,6 +142,7 @@ void W25Q64_AutoErase(uint32_t addr,uint32_t size)
                     W25Q64_WaitBUSY();
                 }
             }
+            printf("%d\r\n",sectors);
             sectors=0;
         }
     }
@@ -192,39 +196,90 @@ void W25Q64_PagesWrite(uint32_t addr,uint8_t *data,uint32_t write_size)
 
 }
 
+void W25Q64_Get_App_From_Flash(uint32_t app_start_addr_flash,uint16_t app_size)
+{
+		printf("Starting W25Q64_AutoErase.\r\n");
+    uint8_t buf[1024]={0};
+    //计算需要读取多少次flash，每次读取1KB
+    uint16_t signle_read_size=1024;
+    //擦除
+    W25Q64_AutoErase(APP_START_ADDR_BACKUP,app_size);
+		printf("W25Q64_AutoErase finished\r\n");
+		
+    for(uint16_t i=0;i<app_size;i++)
+    {
+        //从flash中读取数据
+        uint16_t remainder=i%signle_read_size;
+        buf[remainder]=*((volatile uint8_t*)(app_start_addr_flash+i));
+        //buf存满时,写入
+        if(remainder==1023)
+        {
+            W25Q64_PagesWrite(APP_START_ADDR_BACKUP+(i-1023),buf,signle_read_size);
+        }
+        else if(i+1==app_size)
+        {
+            W25Q64_PagesWrite(APP_START_ADDR_BACKUP+app_size-1-remainder,buf,remainder+1);
+        }
+    }
+}
+
 void W25Q64_Test(void)
 {
-    uint32_t spi_addr=0x01;
-    uint8_t spi_data[512]={0xA5,0x5A};
-		for(int i=0;i<512;i++)
-		{
-			if(i%2==0) spi_data[i]=0xA5;
-			else spi_data[i]=0x5A;
-		}
-    uint8_t spi_buf[518]={0};
-    uint32_t write_size=512;
+/*
+test:
+W25Q64_AutoErase
+W25Q64_Read
+W25Q64_PagesWrite
+*/
+    // uint32_t spi_addr=0x01;
+    // uint8_t spi_data[512]={0xA5,0x5A};
+	// 	for(int i=0;i<512;i++)
+	// 	{
+	// 		if(i%2==0) spi_data[i]=0xA5;
+	// 		else spi_data[i]=0x5A;
+	// 	}
+    // uint8_t spi_buf[518]={0};
+    // uint32_t write_size=512;
 
-    W25Q64_AutoErase(spi_addr,write_size+5);
-    W25Q64_Read(spi_addr,spi_buf,write_size+5);
-    printf("\r\nafter erasing\r\n");
-    for(int i=0;i<write_size;i++)
+    // W25Q64_AutoErase(spi_addr,write_size+5);
+    // W25Q64_Read(spi_addr,spi_buf,write_size+5);
+    // printf("\r\nafter erasing\r\n");
+    // for(int i=0;i<write_size;i++)
+    // {
+    //     printf("%x ",spi_buf[i]);
+	// 			if(i>0&&((i+1)%50)==0) printf("\r\n");
+    // }
+    // W25Q64_PagesWrite(spi_addr,spi_data,write_size);
+
+    // W25Q64_Read(spi_addr,spi_buf,write_size+5);
+    // printf("after writing\r\n");
+    // for(int i=0;i<write_size+5;i++)
+    // {
+    //     printf("%x ",spi_buf[i]);
+	// 			if(i>0&&((i+1)%50)==0) printf("\r\n");
+    // }
+
+/*
+test:
+W25Q64_Get_App_From_Flash
+*/
+    uint8_t spi_buf[512]={0};
+//W25Q64_Read(APP_START_ADDR_BACKUP,spi_buf,512);
+//        for(int i=0;i<512;i++)
+//        {
+//            printf("%x ",spi_buf[i]);
+//            if(((i+1)%16)==0) printf("\r\n");
+//        }
+		printf("start W25Q64_Test...\r\n");
+    W25Q64_Get_App_From_Flash(APP_START_ADDR_FLASH,2049);
+    printf("W25Q64_Get_App_From_Flash finished\r\n");
+    for(int j=0;j<5;j++)
     {
-        printf("%x ",spi_buf[i]);
-				if(i>0&&((i+1)%50)==0) printf("\r\n");
-    }
-    W25Q64_PagesWrite(spi_addr,spi_data,write_size);
-
-
-//   W25Q64_Erase(SECTOR_ERASE_4KB,spi_addr);
-//   W25Q64_WaitBUSY();
-//   printf("sector erase finished.\r\n");
-//   W25Q64_Write(spi_addr,spi_data,2);
-//   W25Q64_WaitBUSY();
-    W25Q64_Read(spi_addr,spi_buf,write_size+5);
-    printf("after writing\r\n");
-    for(int i=0;i<write_size+5;i++)
-    {
-        printf("%x ",spi_buf[i]);
-				if(i>0&&((i+1)%50)==0) printf("\r\n");
+        W25Q64_Read(APP_START_ADDR_BACKUP+j*512,spi_buf,512);
+        for(int i=0;i<512;i++)
+        {
+            printf("%02x ",spi_buf[i]);
+            if(((i+1)%16)==0) printf("\r\n");
+        }
     }
 }

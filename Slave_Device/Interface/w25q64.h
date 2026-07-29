@@ -33,6 +33,7 @@ void W25Q64_Write(uint32_t addr,uint8_t *data,uint16_t write_size);
 void W25Q64_Read(uint32_t addr,uint8_t buf[],uint32_t read_size);
 void W25Q64_AutoErase(uint32_t addr,uint32_t size);
 void W25Q64_PagesWrite(uint32_t addr,uint8_t *data,uint32_t write_size);
+void W25Q64_Get_App_From_Flash(uint32_t app_start_addr_flash,uint16_t app_size);
 void W25Q64_Test(void);
 
 #endif

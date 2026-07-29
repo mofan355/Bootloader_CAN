@@ -21,7 +21,7 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "stdlib.h"
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -119,11 +119,20 @@ int fputc(int ch,FILE* file)
   return ch;
 }
 
-//阻塞式接收来自串口的数据，直到接收到数据为止，返回接收到的数据长度
+//阻塞式接收来自串口的数据，直到触发空闲帧或达到数据最大接收长度为止，返回接收到的数据长度
 uint16_t Receive_Info_from_UART(uint8_t *data,uint16_t MaxLen)
 {
   uint16_t rxLen=0;
   HAL_UARTEx_ReceiveToIdle(&huart1,data,MaxLen,&rxLen,60000);
   return rxLen;
+}
+
+void usart_Test(void)
+{
+  uint8_t rxMsg[512]={0};
+  uint16_t rxLen=Receive_Info_from_UART(rxMsg,16);
+  uint16_t num=atoi((const char *)rxMsg);
+  
+  printf("%d",num);
 }
 /* USER CODE END 1 */
