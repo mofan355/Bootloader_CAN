@@ -40,7 +40,7 @@ void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 24;
+  hcan.Init.Prescaler = 18;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
@@ -176,7 +176,6 @@ void CAN_SendMsg_long(uint32_t stdId,uint8_t *data,uint16_t len)
   uint8_t highByte=(uint8_t)(send_count>>8);
   uint8_t temp_arry[3]={lowByte,highByte};
   CAN_SendMsg(stdId,temp_arry,2);
-  HAL_Delay(10);
 
   for(uint16_t j=0;j<len;j+=8)
   {
@@ -225,13 +224,13 @@ void CAN_Send_App_From_Flash(uint32_t stdId,uint16_t len)
         {
             CAN_SendMsg_long(stdId,buf,signle_read_size);
             printf("%x\r\n",buf[0]);
-            HAL_Delay(1000);
+						memset(buf,0,1024);
         }
         else if(i+1==len)
         {
             CAN_SendMsg_long(stdId,buf,remainder+1);
             printf("%x\r\n",buf[0]);
-            HAL_Delay(1000);
+						memset(buf,0,1024);
         }
     }
 }

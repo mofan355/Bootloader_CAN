@@ -16,3 +16,5 @@
     - 1.实现spi跨页写W25Q64和W25Q64_AutoErase()自动选择模式精准擦除
   - 7.29
     - 1.完成bootloader写入和备份功能
+  - 8.7
+    - 1.修复从机写入flash的bug

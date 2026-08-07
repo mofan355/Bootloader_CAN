@@ -40,7 +40,7 @@ void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 24;
+  hcan.Init.Prescaler = 18;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
@@ -48,7 +48,7 @@ void MX_CAN_Init(void)
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = ENABLE;
-  hcan.Init.AutoRetransmission = ENABLE;
+  hcan.Init.AutoRetransmission = DISABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
@@ -218,7 +218,7 @@ void CAN_Receive_App_to_FLASH(uint16_t app_size)
   uint16_t receive_count=app_size/1024;
   if(app_size%1024!=0) receive_count+=1;
   RxMsg rxMsg[128]={0};
-	uint16_t MsgCount=0;
+	uint16_t MsgCount=0;//存储报文个数
   uint32_t addr=APP_START_ADDR_FLASH;
 	uint16_t received_size=0;
   for(uint16_t i=0;i<receive_count;i++)
@@ -237,8 +237,9 @@ void CAN_Receive_App_to_FLASH(uint16_t app_size)
         {
           Write_Flash(FLASH_TYPEPROGRAM_DOUBLEWORD,addr
             ,rxMsg[j].data,rxMsg[j].len);
+					addr+=rxMsg[j].len;
         }
-        //否则，以FLASH_TYPEPROGRAM_HALFWORD模式写入
+        //否则，以FLASH_TYPEPROGRAM_HALFWORD模式写入（将要写入的报文是整个文件中的最后一个才能触发此条件，所以不需要地址偏移）
         else 
         {
           Write_Flash(FLASH_TYPEPROGRAM_HALFWORD,addr
@@ -257,7 +258,8 @@ void CAN_Receive_App_to_FLASH(uint16_t app_size)
 			received_size+=rxMsg[j].len;
     }
 		
-	printf("%d\r\n",received_size);
+		printf("%d\r\n",received_size);
+		memset(rxMsg,0,sizeof(rxMsg));
   }
 }
 
